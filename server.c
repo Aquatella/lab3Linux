@@ -1,14 +1,19 @@
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
-#include <pthread.h>
+//#include <pthread.h>
 
 #include "const.h"
-
+#ifdef USE_PTHREAD
+#include <pthread.h>
+#else
+#include <sys/types.h>
+#include <sys/wait.h>
+#endif
 void *sendfile(void *arg)
 {
 	long int filesize = 0;
@@ -23,7 +28,7 @@ void *sendfile(void *arg)
         if (fin) {
         	fseek(fin, 0, SEEK_END);
                 filesize = ftell(fin);
-                snprintf(answer, SIZE, "file size is %d B, do you want to continue? [y/n] ", filesize);
+                snprintf(answer, SIZE, "file size is %ld B, do you want to continue? [y/n] ", filesize);
         }
         else {
         	strcpy(answer, "error: no such file\n");
@@ -56,7 +61,11 @@ int main()
 	int sock,listener;
 	struct sockaddr_in addr;
 	int addrlen;
+	#ifdef USE_PTHREAD
 	pthread_t thrd;
+	#else
+	pid_t fork_ret;
+	#endif
 
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -69,8 +78,29 @@ int main()
 
 	while (1) {
 		sock = accept(listener, 0, 0);
-		if (sock)
-			pthread_create(&thrd, NULL, sendfile, &sock);
+		if (sock){
+			#ifdef USE_PTHREAD
+		printf("client connected, using pthread to handle...\n");
+		pthread_create(&thread, NULL, sendfile, (void*)&sock);
+		#else
+		printf("client connected, using fork to handle...\n");
+		fork_ret = fork();
+		if(fork_ret < 0) {
+			printf("fork failed\n");
+			return 1;
+		}
+
+		if(fork_ret == 0) {       // child process
+			close(listener);
+			sendfile((void*)&sock);
+			break;
+		} else
+			// parent process
+			close(sock);
+#endif
+
+		}
+			//pthread_create(&thrd, NULL, sendfile, &sock);
 	}
 	return 0;
 }
