@@ -61,11 +61,11 @@ int main()
 	int sock,listener;
 	struct sockaddr_in addr;
 	int addrlen;
-	#ifdef USE_PTHREAD
+#ifdef USE_PTHREAD
 	pthread_t thrd;
-	#else
+#else
 	pid_t fork_ret;
-	#endif
+#endif
 
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -78,11 +78,11 @@ int main()
 
 	while (1) {
 		sock = accept(listener, 0, 0);
-		if (sock){
-			#ifdef USE_PTHREAD
+		if (sock) {
+#ifdef USE_PTHREAD
 		printf("client connected, using pthread to handle...\n");
 		pthread_create(&thread, NULL, sendfile, (void*)&sock);
-		#else
+#else
 		printf("client connected, using fork to handle...\n");
 		fork_ret = fork();
 		if(fork_ret < 0) {
